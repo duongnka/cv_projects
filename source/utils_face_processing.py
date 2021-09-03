@@ -32,10 +32,22 @@ def face_detector(img, img_gray):
             y = landmarks.part(n).y
             landmarks_points.append((x, y))
             cv2.circle(img, (x, y), 3, (0, 0, 255), -1)
-
     images_show([img])
+    return landmarks_points
 
 
-img, img_gray, mask = read_img('./image_data/face1.jpg')
+def detect_convex_hull(img, mask, landmarks_points):
+    points = np.array(landmarks_points, np.int32)
+    convexhull = cv2.convexHull(points)
+    cv2.polylines(img, [convexhull], True, (255, 0, 0), 3)
+    images_show([img])
+    cv2.fillConvexPoly(mask, convexhull, 255)
+    face = cv2.bitwise_and(img, img, mask=mask)
+    return face
+
+
+img, img_gray, mask = read_img('./image_data/face2.jpg')
 # images_show([img, img_gray, mask])
-face_detector(img, img_gray)
+landmarks_points = face_detector(img, img_gray)
+face = detect_convex_hull(img, mask, landmarks_points)
+images_show([face])
