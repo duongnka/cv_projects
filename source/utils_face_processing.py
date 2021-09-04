@@ -44,20 +44,41 @@ def detect_convex_hull(img, mask, landmarks_points):
     images_show([img])
     cv2.fillConvexPoly(mask, convexhull, 255)
     face = cv2.bitwise_and(img, img, mask=mask)
-    return face, convexhull
+    return face, convexhull, points
 
 
-def delaunay_triangle(convexhull, img):
+def delaunay_triangle_face2nd(img2, indexes_triangles, landmarks_points):
+    for triangle_index in indexes_triangles:
+        pt1 = landmarks_points[triangle_index[0]]
+        pt2 = landmarks_points[triangle_index[1]]
+        pt3 = landmarks_points[triangle_index[2]]
+        cv2.line(img2, pt1, pt2, (0, 0, 255), 2)
+        cv2.line(img2, pt3, pt2, (0, 0, 255), 2)
+        cv2.line(img2, pt1, pt3, (0, 0, 255), 2)
+    images_show([img2])
+
+
+def delaunay_triangle(convexhull, img, landmarks_points, points):
     rect = cv2.boundingRect(convexhull)
     subdiv = cv2.Subdiv2D(rect)
     subdiv.insert(landmarks_points)
     triangles = subdiv.getTriangleList()
     triangles = np.array(triangles, dtype=np.int32)
-
+    indexes_triangeles = []
     for t in triangles:
-        draw_triangle(t, img)
+        pt1, pt2, pt3 = draw_triangle(t, img)
+        index_pt1 = extract_index_nparray(
+            np.where((points == pt1).all(axis=1)))
+        index_pt2 = extract_index_nparray(
+            np.where((points == pt2).all(axis=1)))
+        index_pt3 = extract_index_nparray(
+            np.where((points == pt3).all(axis=1)))
 
+        if index_pt1 is not None and index_pt2 is not None and index_pt3 is not None:
+            triangle = [index_pt1, index_pt2, index_pt3]
+            indexes_triangeles.append(triangle)
     images_show([img])
+    return indexes_triangeles
 
 
 def draw_triangle(triangle, img):
@@ -68,11 +89,26 @@ def draw_triangle(triangle, img):
     cv2.line(img, pt1, pt2, (0, 0, 255), 2)
     cv2.line(img, pt2, pt3, (0, 0, 255), 2)
     cv2.line(img, pt1, pt3, (0, 0, 255), 2)
+    return pt1, pt2, pt3
 
 
-img, img_gray, mask = read_img('./image_data/face2.jpg')
+def extract_index_nparray(nparray):
+    index = None
+    for num in nparray[0]:
+        index = num
+        break
+    return index
+
+
+img, img_gray, mask = read_img('./image_data/face1.jpg')
+img2, img2_gray, _ = read_img('./image_data/face2.jpg')
 # images_show([img, img_gray, mask])
-landmarks_points = face_detector(img, img_gray)
-face, convexhull = detect_convex_hull(img, mask, landmarks_points)
-delaunay_triangle(convexhull, img)
+landmarks_points_img = face_detector(img, img_gray)
+landmarks_points_img2 = face_detector(img2, img2_gray)
+
+face, convexhull, points = detect_convex_hull(img, mask, landmarks_points_img)
+indexes_triangles = delaunay_triangle(
+    convexhull, img, landmarks_points_img, points)
+delaunay_triangle_face2nd(img2, indexes_triangles, landmarks_points_img2)
+
 # images_show([face])
