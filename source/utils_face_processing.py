@@ -111,24 +111,27 @@ def extract_index_nparray(nparray):
 
 def wrap_faces(img, img2, img2_new_face, indexes_triangles, landmarks_points_img, landmarks_points_img2):
     for triangle_index in indexes_triangles:
-        points, cropped_triangle, rect1 = get_triangle(
+        points, cropped_triangle, cropped_mask, rect1 = get_triangle(
             img, landmarks_points_img, triangle_index)
-        points2, cropped_triangle2, rect2 = get_triangle(
+        points2, cropped_triangle2, cropped_mask2, rect2 = get_triangle(
             img2, landmarks_points_img2, triangle_index)
         # Warp triangles
         (x, y, w, h) = rect2
-        points = np.float32(points)
-        points2 = np.float32(points2)
         M = cv2.getAffineTransform(points, points2)
         warped_triangle = cv2.warpAffine(cropped_triangle, M, (w, h))
+        warped_triangle = cv2.bitwise_and(
+            warped_triangle, warped_triangle, mask=cropped_mask2)
         # Reconstructing destination face
         img2_new_face_rect_area = img2_new_face[y: y + h, x: x + w]
+        img2_new_face_rect_area_gray = cv2.cvtColor(
+            img2_new_face_rect_area, cv2.COLOR_BGR2GRAY)
+        _, mask_triangles_designed = cv2.threshold(
+            img2_new_face_rect_area_gray, 1, 255, cv2.THRESH_BINARY_INV)
+        warped_triangle = cv2.bitwise_and(
+            warped_triangle, warped_triangle, mask=mask_triangles_designed)
         img2_new_face_rect_area = cv2.add(
             img2_new_face_rect_area, warped_triangle)
         img2_new_face[y: y + h, x: x + w] = img2_new_face_rect_area
-        # images_show([cropped_triangle, cropped_triangle2, warped_triangle])
-        # break
-    # images_show([img2_new_face])
 
 
 def get_triangle(img, landmarks_points, triangle_index):
@@ -146,7 +149,7 @@ def get_triangle(img, landmarks_points, triangle_index):
     cv2.fillConvexPoly(cropped_mask, points, 255)
     cropped_triangle = cv2.bitwise_and(cropped_triangle, cropped_triangle,
                                        mask=cropped_mask)
-    return points, cropped_triangle, rect
+    return np.float32(points), cropped_triangle, cropped_mask, rect
 
 
 def get_face_mask(img_gray, convexhull):
@@ -154,13 +157,13 @@ def get_face_mask(img_gray, convexhull):
     img_head_mask = cv2.fillConvexPoly(img_face_mask, convexhull, 255)
     img_face_mask = cv2.bitwise_not(img_head_mask)
     # images_show([img_head_mask])
-    return img_face_mask
+    return img_face_mask, img_head_mask
 
 
 img, img_gray, mask = read_img('./image_data/face1.jpg')
 img2, img2_gray, _ = read_img('./image_data/face2.jpg')
 img2_new_face = np.zeros_like(img2)
-# images_show([img, img_gray, mask])
+
 landmarks_points_img = face_detector(img, img_gray)
 landmarks_points_img2 = face_detector(img2, img2_gray)
 
@@ -169,13 +172,17 @@ face2, convexhull2, points2 = detect_convex_hull(
     img2, _, landmarks_points_img2)
 indexes_triangles = delaunay_triangle(
     convexhull, img, landmarks_points_img, points)
-# indexes_triangles2 = delaunay_triangle_face2nd(
-#     img2, indexes_triangles, landmarks_points_img2)
+
 
 wrap_faces(img, img2, img2_new_face, indexes_triangles,
            landmarks_points_img, landmarks_points_img2)
 
-img2_face_mask = get_face_mask(img2_gray, convexhull2)
+img2_face_mask, img2_head_mask = get_face_mask(img2_gray, convexhull2)
 img2_head_noface = cv2.bitwise_and(img2, img2, mask=img2_face_mask)
-img2_new = cv2.add(img2_head_noface, img2_new_face)
-images_show([img2_new])
+result = cv2.add(img2_head_noface, img2_new_face)
+
+(x, y, w, h) = cv2.boundingRect(convexhull2)
+center_face2 = (int((x + x + w) / 2), int((y + y + h) / 2))
+seamlessclone = cv2.seamlessClone(
+    result, img2, img2_head_mask, center_face2, cv2.MIXED_CLONE)
+images_show([seamlessclone])
