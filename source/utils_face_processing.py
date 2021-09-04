@@ -109,7 +109,7 @@ def extract_index_nparray(nparray):
     return index
 
 
-def wrap_faces(img, img2, indexes_triangles, landmarks_points_img, landmarks_points_img2):
+def wrap_faces(img, img2, img2_new_face, indexes_triangles, landmarks_points_img, landmarks_points_img2):
     for triangle_index in indexes_triangles:
         points, cropped_triangle, rect1 = get_triangle(
             img, landmarks_points_img, triangle_index)
@@ -121,8 +121,14 @@ def wrap_faces(img, img2, indexes_triangles, landmarks_points_img, landmarks_poi
         points2 = np.float32(points2)
         M = cv2.getAffineTransform(points, points2)
         warped_triangle = cv2.warpAffine(cropped_triangle, M, (w, h))
+        # Reconstructing destination face
+        img2_new_face_rect_area = img2_new_face[y: y + h, x: x + w]
+        img2_new_face_rect_area = cv2.add(
+            img2_new_face_rect_area, warped_triangle)
+        img2_new_face[y: y + h, x: x + w] = img2_new_face_rect_area
         # images_show([cropped_triangle, cropped_triangle2, warped_triangle])
         # break
+    # images_show([img2_new_face])
 
 
 def get_triangle(img, landmarks_points, triangle_index):
@@ -143,19 +149,33 @@ def get_triangle(img, landmarks_points, triangle_index):
     return points, cropped_triangle, rect
 
 
+def get_face_mask(img_gray, convexhull):
+    img_face_mask = np.zeros_like(img_gray)
+    img_head_mask = cv2.fillConvexPoly(img_face_mask, convexhull, 255)
+    img_face_mask = cv2.bitwise_not(img_head_mask)
+    # images_show([img_head_mask])
+    return img_face_mask
+
+
 img, img_gray, mask = read_img('./image_data/face1.jpg')
 img2, img2_gray, _ = read_img('./image_data/face2.jpg')
+img2_new_face = np.zeros_like(img2)
 # images_show([img, img_gray, mask])
 landmarks_points_img = face_detector(img, img_gray)
 landmarks_points_img2 = face_detector(img2, img2_gray)
 
 face, convexhull, points = detect_convex_hull(img, mask, landmarks_points_img)
+face2, convexhull2, points2 = detect_convex_hull(
+    img2, _, landmarks_points_img2)
 indexes_triangles = delaunay_triangle(
     convexhull, img, landmarks_points_img, points)
 # indexes_triangles2 = delaunay_triangle_face2nd(
 #     img2, indexes_triangles, landmarks_points_img2)
 
-wrap_faces(img, img2, indexes_triangles,
+wrap_faces(img, img2, img2_new_face, indexes_triangles,
            landmarks_points_img, landmarks_points_img2)
 
-# images_show([face])
+img2_face_mask = get_face_mask(img2_gray, convexhull2)
+img2_head_noface = cv2.bitwise_and(img2, img2, mask=img2_face_mask)
+img2_new = cv2.add(img2_head_noface, img2_new_face)
+images_show([img2_new])
