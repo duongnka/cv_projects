@@ -2,6 +2,7 @@ from typing import List
 import cv2
 import dlib
 import numpy as np
+from numpy.lib.twodim_base import tri
 
 
 def read_img(path):
@@ -43,11 +44,35 @@ def detect_convex_hull(img, mask, landmarks_points):
     images_show([img])
     cv2.fillConvexPoly(mask, convexhull, 255)
     face = cv2.bitwise_and(img, img, mask=mask)
-    return face
+    return face, convexhull
+
+
+def delaunay_triangle(convexhull, img):
+    rect = cv2.boundingRect(convexhull)
+    subdiv = cv2.Subdiv2D(rect)
+    subdiv.insert(landmarks_points)
+    triangles = subdiv.getTriangleList()
+    triangles = np.array(triangles, dtype=np.int32)
+
+    for t in triangles:
+        draw_triangle(t, img)
+
+    images_show([img])
+
+
+def draw_triangle(triangle, img):
+    pt1 = (triangle[0], triangle[1])
+    pt2 = (triangle[2], triangle[3])
+    pt3 = (triangle[4], triangle[5])
+
+    cv2.line(img, pt1, pt2, (0, 0, 255), 2)
+    cv2.line(img, pt2, pt3, (0, 0, 255), 2)
+    cv2.line(img, pt1, pt3, (0, 0, 255), 2)
 
 
 img, img_gray, mask = read_img('./image_data/face2.jpg')
 # images_show([img, img_gray, mask])
 landmarks_points = face_detector(img, img_gray)
-face = detect_convex_hull(img, mask, landmarks_points)
-images_show([face])
+face, convexhull = detect_convex_hull(img, mask, landmarks_points)
+delaunay_triangle(convexhull, img)
+# images_show([face])
