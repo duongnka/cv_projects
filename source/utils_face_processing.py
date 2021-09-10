@@ -12,6 +12,11 @@ def read_img(path):
     mask = np.zeros_like(img_gray)
     return img, img_gray, mask
 
+def process_input_img(img):
+    img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    mask = np.zeros_like(img_gray)
+    return img, img_gray, mask
+
 def extract_index_nparray(nparray):
     index = None
     for num in nparray[0]:
@@ -162,7 +167,7 @@ def swap_face(img, img_gray, img2, img2_gray):
         result, img2, img2_head_mask, center_face2, cv2.NORMAL_CLONE)
     return seamlessclone
 
-img, img_gray, mask = read_img('./image_data/face1.jpg')
-img2, img2_gray, mask2 = read_img('./image_data/face2.jpg')
-swapped_face = swap_face(img, img_gray, img2, img2_gray)
-images_show([swapped_face])
+# img, img_gray, mask = read_img('./image_data/face1.jpg')
+# img2, img2_gray, mask2 = read_img('./image_data/face2.jpg')
+# swapped_face = swap_face(img, img_gray, img2, img2_gray)
+# images_show([swapped_face])
