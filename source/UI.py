@@ -50,7 +50,7 @@ if choice == 'Image Based':
             if approach == 'Approach 2':
                 swapped_face = swap_face_approach2(input1, input2)
 
-            if approach == 'Approach 2':
+            if approach == 'Approach 3':
                 swapped_face = swap_face_approach3(input1, input2)
 
             _, _, swap_col, _, _ = st.columns([1,1,2,1,1])
