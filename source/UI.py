@@ -38,16 +38,20 @@ if choice == 'Image Based':
 
     cols = st.columns([1,2,1,1,1])
 
-    methods = ['Approach 1', 'Approach 2']
+    methods = ['Approach 1', 'Approach 2', 'Approach 3']
     approach = cols[1].selectbox('Select an approach', methods)
     cols[2].subheader("")
     if cols[2].button('Swap face'):
 
         if Image1 is not None and Image2 is not None:
             if approach == 'Approach 1':
-                swapped_face = swap_face(input1, input2, True)
-            else:
-                swapped_face = swap_face(input1, input2, False)
+                swapped_face = swap_face_approach1(input1, input2)
+
+            if approach == 'Approach 2':
+                swapped_face = swap_face_approach2(input1, input2)
+
+            if approach == 'Approach 2':
+                swapped_face = swap_face_approach3(input1, input2)
 
             _, _, swap_col, _, _ = st.columns([1,1,2,1,1])
 

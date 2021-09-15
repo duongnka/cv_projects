@@ -6,7 +6,7 @@ import dlib
 import numpy as np
 
 RESIZE_HEIGHT = 360
-FACE_DOWNSAMPLE_RATIO = 1.5
+FACE_DOWNSAMPLE_RATIO = 1
 MOUTH_POINTS = [
     [60],  # <inner mouth>
     [61],
@@ -30,9 +30,9 @@ def detect_facial_landmarks(img, FACE_DOWNSAMPLE_RATIO=1):
         fy=1.0 / FACE_DOWNSAMPLE_RATIO,
         interpolation=cv2.INTER_LINEAR,
     )
-
+    img_gray = cv2.cvtColor(small_img, cv2.COLOR_BGR2GRAY)
     # use the biggest face
-    rect = max(detector(small_img), key=lambda r: r.area())
+    rect = max(detector(img_gray), key=lambda r: r.area())
 
     scaled_rect = dlib.rectangle(
         int(rect.left() * FACE_DOWNSAMPLE_RATIO),
@@ -61,9 +61,6 @@ def get_delaunay_triangles(rect, points, indexes):
     for t in found_triangles:
         triangle = [(t[0], t[1]), (t[2], t[3]), (t[4], t[5])]
 
-        # `getTriangleList` return triangles only, without origin points indices and we need them
-        # so they correspond to other picture through index. So we're looking for original
-        # index number for every point.
         if (
             contains(rect, triangle[0])
             and contains(rect, triangle[1])
@@ -150,14 +147,14 @@ def resize_image(img):
     )
     return img
 
-def get_hull_index(img, points):
+def get_hull_index(points):
     original_hull_index = cv2.convexHull(np.array(points), returnPoints=False)
 
     hull_index = np.concatenate((original_hull_index, MOUTH_POINTS))
 
     return original_hull_index, hull_index
 
-def warp_face(img1, img1_warped, points1, points2, delaunay_triangles):
+def warp_face(img1, img1_warped, points1, points2, delaunay_triangles, except_mouse_space = False):
     
     for triangle in delaunay_triangles:
         mouth_points_set = set(mp[0] for mp in MOUTH_POINTS)
@@ -165,6 +162,7 @@ def warp_face(img1, img1_warped, points1, points2, delaunay_triangles):
             triangle[0] in mouth_points_set
             and triangle[1] in mouth_points_set
             and triangle[2] in mouth_points_set
+            and except_mouse_space == True
         ):
             continue
 
@@ -183,7 +181,7 @@ def seamless_clone_new_face(img2, original_hull_index2, img1_warped):
     img2 = cv2.seamlessClone(np.uint8(img1_warped), img2, mask, center, cv2.NORMAL_CLONE)
     return img2
 
-def swap_face(img1, img2, except_mouse_space):
+def swap_face_approach1(img1, img2):
 
     img1 = resize_image(img1)
     img2 = resize_image(img2)
@@ -191,18 +189,42 @@ def swap_face(img1, img2, except_mouse_space):
     points1 = detect_facial_landmarks(img1, FACE_DOWNSAMPLE_RATIO)
     points2 = detect_facial_landmarks(img2, FACE_DOWNSAMPLE_RATIO)
 
-    original_hull_index, hull_index = get_hull_index(img1, points1)
+    original_hull_index, hull_index = get_hull_index(points1)
     original_hull_index2 = [points2[hull_index_element[0]] for hull_index_element in original_hull_index]
-    if except_mouse_space:
-        hull1 = [points1[hull_index_element[0]] for hull_index_element in original_hull_index]
-        hull2 = [points2[hull_index_element[0]] for hull_index_element in original_hull_index]
-    else:
-        hull1 = [points1[hull_index_element[0]] for hull_index_element in hull_index]
-        hull2 = [points2[hull_index_element[0]] for hull_index_element in hull_index]
 
     rect = (0, 0, img1.shape[1], img1.shape[0])
+
+    hull1 = [points1[hull_index_element[0]] for hull_index_element in hull_index]
+    hull2 = [points2[hull_index_element[0]] for hull_index_element in hull_index]
     delaunay_triangles = get_delaunay_triangles(rect, hull1, [hi[0] for hi in hull_index])
 
+   
+
+    img1_warped = np.float32(img2)
+
+    warp_face(img1, img1_warped, points1, points2, delaunay_triangles, True)
+
+    img2 = seamless_clone_new_face(img2, original_hull_index2, img1_warped)
+
+    return img2
+
+def swap_face_approach2(img1, img2):
+
+    img1 = resize_image(img1)
+    img2 = resize_image(img2)
+
+    points1 = detect_facial_landmarks(img1, FACE_DOWNSAMPLE_RATIO)
+    points2 = detect_facial_landmarks(img2, FACE_DOWNSAMPLE_RATIO)
+
+    original_hull_index, hull_index = get_hull_index(points1)
+    original_hull_index2 = [points2[hull_index_element[0]] for hull_index_element in original_hull_index]
+
+    rect = (0, 0, img1.shape[1], img1.shape[0])
+
+    
+    hull1 = [points1[hull_index_element[0]] for hull_index_element in original_hull_index]
+    hull2 = [points2[hull_index_element[0]] for hull_index_element in original_hull_index]
+    delaunay_triangles = get_delaunay_triangles(rect, hull1, [hi[0] for hi in original_hull_index])
 
     img1_warped = np.float32(img2)
 
@@ -211,3 +233,30 @@ def swap_face(img1, img2, except_mouse_space):
     img2 = seamless_clone_new_face(img2, original_hull_index2, img1_warped)
 
     return img2
+
+def swap_face_approach3(img1, img2):
+
+    img1 = resize_image(img1)
+    img2 = resize_image(img2)
+
+    points1 = detect_facial_landmarks(img1, FACE_DOWNSAMPLE_RATIO)
+    points2 = detect_facial_landmarks(img2, FACE_DOWNSAMPLE_RATIO)
+
+    original_hull_index, hull_index = get_hull_index(points1)
+    original_hull_index2 = [points2[hull_index_element[0]] for hull_index_element in original_hull_index]
+
+    rect = (0, 0, img1.shape[1], img1.shape[0])
+
+    points_indexes = range(0,68)
+    landmarks_points = [points1[pi] for pi in points_indexes]
+
+    delaunay_triangles = get_delaunay_triangles(rect, landmarks_points, points_indexes)
+
+    img1_warped = np.float32(img2)
+
+    warp_face(img1, img1_warped, points1, points2, delaunay_triangles)
+
+    img2 = seamless_clone_new_face(img2, original_hull_index2, img1_warped)
+
+    return img2
+
