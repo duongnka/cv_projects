@@ -20,7 +20,7 @@ MOUTH_POINTS = [
 COLORS = []
 
 detector = dlib.get_frontal_face_detector()
-predictor = dlib.shape_predictor("shape_predictor_68_face_landmarks.dat")
+predictor = dlib.shape_predictor("./face_swapping/shape_predictor_68_face_landmarks.dat")
 
 def detect_facial_landmarks(img, FACE_DOWNSAMPLE_RATIO=1):
     small_img = cv2.resize(
