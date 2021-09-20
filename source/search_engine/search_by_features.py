@@ -1,4 +1,5 @@
 from search_engine.search_utils import *
+# from search_utils import *
 from scipy import spatial
 
 
@@ -31,13 +32,30 @@ class SearchEngineByFeature:
     def calculate_distance(self, query_feature, result_ids):
         results = []
         for id in result_ids:
-            d = 1 - spatial.distance.cosine(self.images_features[id], query_feature)
-            results[id] = d
-        return sorted([(v, k) for (k, v) in results.items()],reverse=True)
+            image_path = self.list_images[id]
+            k = image_path[image_path.rfind("/") + 1:]
+            d = spatial.distance.cosine(self.images_features[k], query_feature)
+            results.append({ 'index' :id, 'dist': d})
+
+        return sorted(results, key=lambda k: (k['dist']))
     
+    def load_result_images(self, results):
+        images_links = []
+        for index in range(25):
+            i = results[index]['index']
+            path = './search_engine' + self.list_images[i].replace('\\', '/')[1:]
+            images_links.append(path)
+        return images_links
+
     def search(self, query_image):
         query_feature = self.extract_query_feature(query_image)
         result_ids = self.get_related_images_ids(query_feature)
         results = self.calculate_distance(query_feature, result_ids)
-        return results
-    
+        return self.load_result_images(results)
+
+
+# path = './data_set/17flowers/image_0001.jpg'
+# query_img = read_img_PIL(path)
+# engine = SearchEngineByFeature()
+# results = engine.search(query_img)
+# print(results[0])

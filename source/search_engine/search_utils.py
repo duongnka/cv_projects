@@ -94,7 +94,7 @@ class Resnet18SearchEngine:
         self.load_model()
 
     def load_model(self):
-        modelPath = './obj/feature_extractor_resnet18.pth'
+        modelPath = './search_engine/obj/feature_extractor_resnet18.pth'
         self.model = torch.load(modelPath, map_location= DEVICE)
 
     def feature_extractor(self, img):
@@ -123,7 +123,11 @@ class Resnet18SearchEngine:
             save_obj(images_features, 'image_features_resnet18')
 
         return images_features
-        
+
+def get_PIL_from_byte(img):
+    import io
+    image = Image.open(io.BytesIO(img))      
+    return image  
 
 class RGBHistogram:
     def __init__(self, bins : List[int]):
@@ -167,4 +171,4 @@ def init_features_search():
     images_features = describer.describe_images(list_images, True)
     create_inverted_index(images_features, 'features', isSave=True)
 
-init_features_search()
+# init_features_search()

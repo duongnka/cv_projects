@@ -42,14 +42,12 @@ class HistogramSearch:
         return sorted(results, key=lambda k: (k['dist']))
 
     def load_result_images(self, results):
-        result_images = []
-        for index in range(10):
+        images_links = []
+        for index in range(25):
             i = results[index]['index']
             path = './search_engine' + self.list_images[i].replace('\\', '/')[1:]
-            image = cv2.imread(path)
-            result_images.append(image)
-        print(len(result_images))
-        return result_images
+            images_links.append(path)
+        return images_links
 
     def search(self, query_image):
         query_histogram = self.extract_query_feature(query_image)
